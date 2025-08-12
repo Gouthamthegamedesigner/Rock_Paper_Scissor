@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rock · Paper · Scissors — Online Multiplayer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #000814;
+      --card: #001d3d;
+      --accent: #ffd60a;
+      --muted: #adb5bd;
+      --glass: rgba(255, 255, 255, 0.05);
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: #f8f9fa;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, 'Helvetica Neue', Arial;
+      padding: 2rem 1rem;
+    }
+    .card-game {
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
+      border-radius: 12px;
+    }
+    .choice-btn {
+      width: 110px; height: 110px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px;
+      cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--glass);
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+      color: #fff;
+    }
+    .choice-btn:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 10px 30px rgba(255, 214, 10, 0.5);
+      background: rgba(255,214,10,0.15);
+    }
+    .choice-btn .bi {
+      font-size: 34px; color: var(--accent);
+    }
+    .choice-label {
+      font-size: .85rem; color: var(--muted);
+    }
+    .score-pill {
+      background: rgba(255,255,255,0.08);
+      padding: .35rem .6rem; border-radius: 999px;
+      font-weight: 700; color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="container d-flex align-items-center justify-content-center" style="min-height:75vh">
+    <div class="w-100" style="max-width:920px">
+      <div class="card p-4 card-game">
+        <div class="mb-3">
+          <h4 class="text-light">Rock · Paper · Scissors — Online Multiplayer</h4>
+          <small class="text-muted">Waiting for another player to join...</small>
+        </div>
+
+        <div class="text-center mb-3">
+          <div id="status" class="text-info">Connecting to server...</div>
+        </div>
+
+        <div class="row g-3 align-items-center">
+          <div class="col-md-6 text-center">
+            <div class="mb-3 text-light">You</div>
+            <div class="d-flex justify-content-center gap-3">
+              <button class="choice-btn" data-choice="rock">
+                <i class="bi bi-hand-thumbs-down"></i>
+                <div class="choice-label">Rock</div>
+              </button>
+              <button class="choice-btn" data-choice="paper">
+                <i class="bi bi-file-earmark-text"></i>
+                <div class="choice-label">Paper</div>
+              </button>
+              <button class="choice-btn" data-choice="scissors">
+                <i class="bi bi-scissors"></i>
+                <div class="choice-label">Scissors</div>
+              </button>
+            </div>
+          </div>
+
+          <div class="col-md-6 text-center">
+            <div class="mb-3 text-light">Opponent</div>
+            <div id="opponent-choice" class="text-muted">Waiting...</div>
+          </div>
+
+          <div class="col-12 text-center mt-3">
+            <div id="resultText" class="fw-bold"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Replace with your WebSocket server URL
+    const socket = new WebSocket('wss://YOUR-WEBSOCKET-SERVER');
+
+    let playerChoice = null;
+    let opponentChoice = null;
+
+    const resultText = document.getElementById('resultText');
+    const statusText = document.getElementById('status');
+    const opponentChoiceEl = document.getElementById('opponent-choice');
+
+    socket.addEventListener('open', () => {
+      statusText.textContent = 'Connected. Waiting for match...';
+    });
+
+    socket.addEventListener('message', (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'match-found') {
+        statusText.textContent = 'Match found! Make your move.';
+      }
+      else if (data.type === 'opponent-choice') {
+        opponentChoice = data.choice;
+        opponentChoiceEl.textContent = 'Locked in';
+        checkResult();
+      }
+      else if (data.type === 'result') {
+        resultText.textContent = data.message;
+      }
+    });
+
+    document.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        playerChoice = btn.dataset.choice;
+        socket.send(JSON.stringify({ type: 'player-choice', choice: playerChoice }));
+        statusText.textContent = 'Choice sent. Waiting for opponent...';
+      });
+    });
+
+    function checkResult() {
+      if (playerChoice && opponentChoice) {
+        if (playerChoice === opponentChoice) {
+          resultText.textContent = `Tie — both chose ${playerChoice}`;
+        } else if (
+          (playerChoice === 'rock' && opponentChoice === 'scissors') ||
+          (playerChoice === 'scissors' && opponentChoice === 'paper') ||
+          (playerChoice === 'paper' && opponentChoice === 'rock')
+        ) {
+          resultText.textContent = `You win! ${playerChoice} beats ${opponentChoice}`;
+        } else {
+          resultText.textContent = `You lose! ${opponentChoice} beats ${playerChoice}`;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
